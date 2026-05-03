@@ -36,8 +36,12 @@ const TAXONOMY_VALUES = {
     'off shoulder': 'gid://shopify/TaxonomyValue/6705', 'off-shoulder': 'gid://shopify/TaxonomyValue/6705',
     'halter': 'gid://shopify/TaxonomyValue/6708', 'sweetheart': 'gid://shopify/TaxonomyValue/6714',
     'cowl': 'gid://shopify/TaxonomyValue/6707', 'turtleneck': 'gid://shopify/TaxonomyValue/6715',
+    'turtle': 'gid://shopify/TaxonomyValue/6715', 'turtle neck': 'gid://shopify/TaxonomyValue/6715',
     'plunging': 'gid://shopify/TaxonomyValue/6713', 'deep v': 'gid://shopify/TaxonomyValue/6713',
     'strapless': 'gid://shopify/TaxonomyValue/177', 'wrap': 'gid://shopify/TaxonomyValue/6716',
+    // "Turtle" is the store label for turtleneck — same GID
+    'turtle': 'gid://shopify/TaxonomyValue/6715', 'turtle neck': 'gid://shopify/TaxonomyValue/6715',
+    // mock, hooded, asymmetric resolve via findMetaobjectByLabel handle match — no GID needed
   },
   sleeve_length: {
     'sleeveless': 'gid://shopify/TaxonomyValue/174', 'short': 'gid://shopify/TaxonomyValue/169',
@@ -230,7 +234,7 @@ async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes
       `, { metafields: [mf] });
       const errors = result?.data?.metafieldsSet?.userErrors || [];
       if (errors.length === 0) ok++;
-      else log.debug(`[shopify] Taxonomy attr error: ${errors[0].message}`);
+      else log.debug(`[shopify] Taxonomy attr error on ${mf.namespace}.${mf.key}: ${errors[0].message}`);
     } catch (err) {
       log.debug(`[shopify] Taxonomy attr failed: ${err.message}`);
     }
@@ -360,6 +364,69 @@ async function setProductCategory(productGid, categoryId) {
   if (errors.length > 0) log.debug(`[shopify] Category errors: ${JSON.stringify(errors)}`);
 }
 
+// ── Link variant options to metafields (connected options) ───────────────────
+
+const OPTION_METAFIELD_LINK = {
+  'color': { namespace: 'shopify', key: 'color-pattern' },
+  'size':  { namespace: 'shopify', key: 'size' },
+};
+
+async function linkOptionsToMetafields(productGid) {
+  const METAOBJECT_TYPE = {
+    'color': 'shopify--color-pattern',
+    'size':  'shopify--size',
+  };
+
+  // REST options don't carry individual value IDs — query them via GraphQL
+  const gqlProduct = await shopifyGraphQL(`
+    query getOptions($id: ID!) {
+      product(id: $id) {
+        options { id name optionValues { id name } }
+      }
+    }
+  `, { id: productGid });
+
+  const options = gqlProduct?.data?.product?.options || [];
+
+  for (const opt of options) {
+    const nameKey = opt.name.toLowerCase();
+    const moType  = METAOBJECT_TYPE[nameKey];
+    const link    = OPTION_METAFIELD_LINK[nameKey];
+    if (!moType || !link) continue;
+
+    // Build values — provide linkedMetafieldValue where available, omit for unknowns.
+    // Shopify may reject partial linking; we try anyway and log the error if so.
+    const values = [];
+    let hasAny = false;
+    for (const ov of opt.optionValues) {
+      const gid = await findMetaobjectByLabel(moType, ov.name).catch(() => null);
+      if (gid) { values.push({ id: ov.id, linkedMetafieldValue: gid }); hasAny = true; }
+      else { values.push({ id: ov.id }); }
+    }
+
+    if (!hasAny) {
+      log.debug(`[shopify] Link option "${opt.name}": no values matched, skipping`);
+      continue;
+    }
+
+    try {
+      const result = await shopifyGraphQL(`
+        mutation linkOption($productId: ID!, $option: OptionUpdateInput!) {
+          productOptionUpdate(productId: $productId, option: $option, variantStrategy: LEAVE_AS_IS) {
+            product { options { id name linkedMetafield { namespace key } } }
+            userErrors { field message }
+          }
+        }
+      `, { productId: productGid, option: { id: opt.id, linkedMetafield: link, values } });
+      const errors = result?.data?.productOptionUpdate?.userErrors || [];
+      if (errors.length > 0) log.debug(`[shopify] Link option "${opt.name}" error: ${errors[0].message}`);
+      else log.info(`[shopify] Option "${opt.name}" linked → ${link.namespace}.${link.key}`);
+    } catch (err) {
+      log.debug(`[shopify] Link option "${opt.name}" failed: ${err.message}`);
+    }
+  }
+}
+
 // ── Main product creator ──────────────────────────────────────────────────────
 
 async function createProduct({ title, desc, tags, category, metafields, variants, options, imageUrls, variantImageMap, colors, sizes }) {
@@ -416,6 +483,13 @@ async function createProduct({ title, desc, tags, category, metafields, variants
     log.debug(`[shopify] Taxonomy attrs error (non-fatal): ${err.message}`);
   }
 
+  // 5b. Link variant options to their metafields (connected options — color swatches, size chips)
+  try {
+    await linkOptionsToMetafields(productGid);
+  } catch (err) {
+    log.debug(`[shopify] Option linking error (non-fatal): ${err.message}`);
+  }
+
   // 6. Upload images and capture IDs
   const uploadedImages = [];
   for (const url of imageUrls) {
@@ -430,6 +504,11 @@ async function createProduct({ title, desc, tags, category, metafields, variants
 
   // 7. Link images to variants
   if (uploadedImages.length > 0) {
+    const assignedColors = Object.keys(variantImageMap);
+    if (assignedColors.length > 0) {
+      log.debug(`[shopify] Variant image map: ${assignedColors.map(c => `${c}→img[${imageUrls.indexOf(variantImageMap[c])}]`).join(', ')}`);
+    }
+
     const updatedVariants = product.variants.map(v => {
       const colorKey = v.option1;
       const imgUrl   = variantImageMap[colorKey];
@@ -438,12 +517,15 @@ async function createProduct({ title, desc, tags, category, metafields, variants
       return { id: v.id, image_id: uploaded?.id || v.image_id };
     });
 
+    let linked = 0;
     for (const v of updatedVariants) {
       if (v.image_id) {
         await shopifyRest('PUT', `/products/${productId}/variants/${v.id}.json`, { variant: v })
           .catch(err => log.debug(`[shopify] Variant image link failed: ${err.message}`));
+        linked++;
       }
     }
+    log.info(`[shopify] Variant images linked: ${linked}/${updatedVariants.length}`);
   }
 
   // 8. Publish to all sales channels

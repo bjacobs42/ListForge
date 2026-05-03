@@ -97,7 +97,7 @@ async function getAccessToken(gToken) {
 }
 
 function extractDesignId(canvaUrl) {
-  const match = canvaUrl.match(/\/design\/([^/]+)\//);
+  const match = canvaUrl.match(/\/design\/([^/?#]+)/);
   return match ? match[1] : null;
 }
 

@@ -17,12 +17,15 @@ async function markProcessing(token, rows) {
   }
 }
 
-async function markListed(token, row, shopifyUrl, title) {
+async function markListed(token, row, shopifyUrl, title, price) {
   const now = new Date();
   await updateCell(token, GOOGLE_SHEET_ID, STORE_SHEET_TAB, row.rowNum, COL.STATUS,       STATUS.LISTED);
   await updateCell(token, GOOGLE_SHEET_ID, STORE_SHEET_TAB, row.rowNum, COL.SHOPIFY_LINK, shopifyUrl);
   await updateCell(token, GOOGLE_SHEET_ID, STORE_SHEET_TAB, row.rowNum, COL.DATE_LISTED,  formatDate(now));
   await updateCell(token, GOOGLE_SHEET_ID, STORE_SHEET_TAB, row.rowNum, COL.PRODUCT_NAME, title);
+  if (price != null) {
+    await updateCell(token, GOOGLE_SHEET_ID, STORE_SHEET_TAB, row.rowNum, COL.STORE_PRICE, price);
+  }
   log.info(`[sheet] Row ${row.rowNum} → AI LISTED — ${shopifyUrl}`);
 }
 

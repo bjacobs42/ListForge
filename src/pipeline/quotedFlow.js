@@ -46,8 +46,8 @@ async function runQuotedFlow(row, gToken) {
   // 4. Normalize colors
   const colors = normalizeColors(ai.colors.length > 0 ? ai.colors : []);
 
-  // 5. Image processing
-  const { deduped, variantImageMap } = processImages(imageUrls, colors);
+  // 5. Image processing — pass AI color→image mapping so each variant gets the right photo
+  const { deduped, variantImageMap } = processImages(imageUrls, colors, ai.colorImageIndices || {});
 
   // 6. Build variants
   const price = row.storePrice || row.suggestedPrice;
@@ -68,7 +68,7 @@ async function runQuotedFlow(row, gToken) {
     sizes,
   });
 
-  return { title: ai.title, adminUrl, productId };
+  return { title: ai.title, adminUrl, productId, price };
 }
 
 module.exports = { runQuotedFlow };

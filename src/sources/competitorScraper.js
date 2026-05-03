@@ -103,9 +103,53 @@ function parseProductFromJsonLd(jsonLdNodes) {
   return null;
 }
 
+// Shopify stores expose a public JSON endpoint at {origin}/products/{handle}.json
+async function tryShopifyJson(url) {
+  try {
+    const match = url.match(/\/products\/([^/?#]+)/);
+    if (!match) return null;
+    const handle  = match[1];
+    const origin  = new URL(url).origin;
+    const jsonUrl = `${origin}/products/${handle}.json`;
+    log.debug(`[scraper] Trying Shopify JSON: ${jsonUrl}`);
+    const raw  = await fetchUrl(jsonUrl);
+    const data = JSON.parse(raw);
+    const p    = data?.product;
+    if (!p) return null;
+
+    // Images
+    const images = (p.images || []).map(i => i.src).filter(Boolean);
+
+    // Colors + sizes from variants
+    const colors = [], sizes = [];
+    const colorOpt = (p.options || []).findIndex(o => /colou?r/i.test(o.name));
+    const sizeOpt  = (p.options || []).findIndex(o => /size/i.test(o.name));
+    for (const v of (p.variants || [])) {
+      const c = colorOpt >= 0 ? v[`option${colorOpt + 1}`] : null;
+      const s = sizeOpt  >= 0 ? v[`option${sizeOpt  + 1}`] : null;
+      if (c && !colors.includes(c)) colors.push(c);
+      if (s && !sizes.includes(s))   sizes.push(s);
+    }
+
+    const price = p.variants?.[0]?.price || null;
+    const title = p.title || '';
+
+    log.info(`[scraper] Shopify JSON: ${images.length} images, ${colors.length} colors, ${sizes.length} sizes`);
+    return { images, colors, sizes, price, title };
+  } catch {
+    return null;
+  }
+}
+
 async function scrape(url) {
   const empty = { images: [], colors: [], sizes: [], price: null, title: '' };
   if (!url) return empty;
+
+  // 1. Try Shopify product JSON endpoint (works on all Shopify stores)
+  if (/\/products\/[^/?#]+/.test(url)) {
+    const shopify = await tryShopifyJson(url);
+    if (shopify && shopify.images.length > 0) return shopify;
+  }
 
   let html;
   try {
@@ -115,7 +159,7 @@ async function scrape(url) {
     return empty;
   }
 
-  // 1. Try JSON-LD structured data
+  // 2. Try JSON-LD structured data
   const jsonLd  = extractJsonLd(html);
   const product = parseProductFromJsonLd(jsonLd);
   if (product && product.images.length > 0) {
@@ -123,12 +167,12 @@ async function scrape(url) {
     return product;
   }
 
-  // 2. Fall back to OG tags + large images
+  // 3. Fall back to OG tags + large images
   const ogImages   = extractOgImages(html);
   const htmlImages = extractLargeImages(html);
   const images     = ogImages.length > 0 ? ogImages : htmlImages;
 
-  // 3. Extract title from OG or <title>
+  // 4. Extract title from OG or <title>
   const titleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
     || html.match(/<title[^>]*>([^<]+)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim() : '';

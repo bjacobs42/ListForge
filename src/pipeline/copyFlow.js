@@ -68,7 +68,7 @@ async function runCopyFlow(row) {
     sizes,
   });
 
-  return { title: ai.title, adminUrl, productId };
+  return { title: ai.title, adminUrl, productId, price };
 }
 
 module.exports = { runCopyFlow };

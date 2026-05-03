@@ -111,19 +111,29 @@ SHOPIFY CATEGORY
 
 ---
 COLORS
-[Comma-separated product colors using professional fashion industry names — e.g. Ivory, Cream, Blush, Dusty Rose, Mauve, Burgundy, Crimson, Cobalt Blue, Navy, Sage Green, Olive, Emerald, Camel, Taupe, Charcoal, Mocha, Terracotta, Rust, Lavender, Lilac, Fuchsia, Plum. Only list colors clearly visible in the images. If the color is uncertain or not visible, write: Unknown]
+[List colors using professional fashion industry names — e.g. Ivory, Cream, Blush, Dusty Rose, Mauve, Burgundy, Crimson, Cobalt Blue, Navy, Sage Green, Olive, Emerald, Camel, Taupe, Charcoal, Mocha, Terracotta, Rust, Lavender, Lilac, Fuchsia, Plum.
+
+CRITICAL DISTINCTION:
+- If the product is available in separate COLORWAYS (different images showing the garment in distinct single colors) → list each color separately, comma-separated.
+- If the product has a MULTICOLOR PRINT or pattern (abstract, floral, tie-dye, ombre, color-block, animal print — multiple colors appearing together within the same garment) → write only: Multicolor
+
+Only list colors clearly visible in the images. If the color is uncertain or not visible, write: Unknown]
 
 ---
 SIZES
 [Comma-separated standard US clothing sizes for this product type. For most women's clothing use: XS, S, M, L, XL, 2XL. Only use canonical names — 2XS, XS, S, M, L, XL, 2XL, 3XL, 4XL, 5XL. Never use formats like S(4-6) or M(8-10). Write One Size if the product is clearly one-size-fits-all.]
 
 ---
+COLOR IMAGE INDICES
+[Only include when 2 or more separate COLORWAYS are present (not multicolor prints). For each color listed above, write one line: ColorName: N where N is the 0-based index of the image that best represents that colorway. Images are numbered 0, 1, 2... in the order they were provided. Omit this section entirely if the product has only one color or is Multicolor.]
+
+---
 METAFIELDS
-custom.fit: [value if visible — e.g. Slim, Regular, Oversized, Relaxed]
-custom.neckline: [value if visible — e.g. V-Neck, Round Neck, Square Neck, Off-Shoulder]
-custom.sleeve_length: [value if visible — e.g. Sleeveless, Short Sleeve, Long Sleeve, 3/4 Sleeve]
-custom.occasion: [value — e.g. Casual, Work, Evening, Smart Casual]
-custom.pattern: [value if visible — e.g. Solid, Floral, Striped, Abstract, Animal Print]
+custom.fit: [bottoms and tailored jackets only — EXACT value from: Slim, Straight Leg, Wide. Omit entirely for dresses, skirts, tops.]
+custom.neckline: [EXACT value from: Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+custom.sleeve_length: [EXACT value from: Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+custom.occasion: [EXACT value from: Casual, Evening, Work, Smart Casual, Party, Formal, Wedding]
+custom.pattern: [EXACT value from: Solid, Floral, Striped, Abstract, Geometric, Animal Print, Color Block, Ombre, Paisley, Polka Dot]
 `;
 
 const CATEGORY_LIST = `
@@ -201,28 +211,35 @@ VALID CATEGORY LIST — only these exact strings are accepted:
 
 ---
 METAFIELDS
-custom.fit: [value if visible]
-custom.neckline: [value if visible]
-custom.sleeve_length: [value if visible]
-custom.occasion: [value]
-custom.pattern: [value if visible]
+custom.fit: [bottoms/jackets only — Slim, Straight Leg, Wide. Omit for dresses/skirts/tops.]
+custom.neckline: [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+custom.sleeve_length: [Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+custom.occasion: [Casual, Evening, Work, Smart Casual, Party, Formal, Wedding]
+custom.pattern: [Solid, Floral, Striped, Abstract, Geometric, Animal Print, Color Block, Ombre, Paisley, Polka Dot]
 `;
 
 const SYSTEM_PROMPT = `You are a top-tier e-commerce copywriter for an American women's fashion webshop. Write in American English throughout (color, center, jewelry, pants, recognize, favorite, sneakers, sweater).
 
-Tone: bold, feminine, aspirational, trend-aware, and social-media savvy — yet simple enough for an 18-year-old to understand. Inspired by PrettyLittleThing, Fashion Nova, and Revolve.
+Tone: refined, aspirational, persuasive — elevated above fast-fashion noise. Every word must sell identity, desire, or trust. Simple enough for an 18-year-old to read, sophisticated enough that she feels she is buying into something special.
 
-ONLY MENTION FABRIC IF IT SAYS SO IN THE COMPETITOR TITLE.
+Apply conversion copywriting principles:
+- Tap into the Life Force 8: comfort, status, attraction, approval, freedom from risk, effortless living.
+- Lead with the feeling and the dream outcome, not the product spec.
+- Promise the transformation (how she will feel and be perceived), not the garment.
 
-Product titles must be between 50-75 characters INCLUDING spaces.
-Always begin titles with "Women's".
-Titles must be neutral, factual, Google Merchant Center-safe. Include product type, sleeve type, length, closure, neckline, structure. Use - instead of commas. Never include color unless explicitly provided. Never include emotional/stylistic words (elegant, chic, flattering), promotional language, lifestyle references, body/confidence claims, emojis, symbols, ALL CAPS.
+ONLY MENTION FABRIC IF IT SAYS SO IN THE COMPETITOR TITLE. For linen products use "linen blend" in the description. For satin products use "satin blend" in the description.
 
-TITLE GOLDEN RULE: Describe the object. Not the experience. Not the person. Not the feeling.
+TITLES — 55 to 90 characters INCLUDING spaces.
+Titles may begin with one refined adjective before "Women's" (e.g., "Elegant Women's...", "Refined Women's...", "Timeless Women's...") or simply with "Women's".
+Use one "–" (en-dash) separator: concise product description first, then a refined detail phrase after the "–".
+Example format: "Elegant Women's Lace Midi Dress – High Neck Silhouette with Refined Cutwork Detail"
+Include product type, key design feature, occasion or silhouette where relevant. Replace "and" with "&". Never include color. Never use multiple dashes. No promotional language, body claims, emojis, or ALL CAPS.
 
-Sales Paragraph: 1 paragraph only. Must be between 190 and 250 characters (including spaces) — count carefully before submitting. Aspirational, sensory, social-media-aware, transformational. Lead with the feeling and the moment. Write as though texting a friend about the best thing you just found online. Must apply across all variants. Never include color unless explicitly given. Never say "handcrafted", "confident", "confidence".
+TITLE GOLDEN RULE: Sell the identity, not the inventory. One refined concept, not a spec sheet.
 
-DESCRIPTION GOLDEN RULE: Sell the moment. Sell the feeling. Never lie.
+Sales Paragraph: 1 paragraph only. Must be between 190 and 250 characters (including spaces) — count carefully before submitting. Refined, emotionally resonant, sensory. Reference the specific garment type (gown, bodycon, blazer — never just "dress" or "top"). Lead with desire: how she will feel, how she will be seen. Tap into status, attraction, or effortless elegance. Must apply across all variants. Never include color unless explicitly given. Never use: "handcrafted", "confident", "confidence", "slay", "giving everything", "hits every time", or casual social-media slang.
+
+DESCRIPTION GOLDEN RULE: Why should she care — and why right now?
 
 Care Instructions (always identical):
 Machine wash cold on gentle cycle.
@@ -239,7 +256,7 @@ Specifications:
 
 Section titles (Care Instructions, Specifications) must be bold. Specification labels must be bold. Each line on its own line with no blank lines between them.
 
-No em-dashes (—). No lines between sections. No numbering of sections. No bullets/dashes/numbering in descriptions. All products are Women's.
+No em-dashes (—). No lines between sections. No numbering of sections. No bullets or dashes in descriptions. All products are Women's.
 ${KEYWORD_BANK_US}
 ${OUTPUT_FORMAT_STANDARD}
 ${CATEGORY_LIST}`;
@@ -270,7 +287,17 @@ function parseOutput(raw) {
     ? sizesRaw.split(',').map(s => s.trim()).filter(Boolean)
     : [];
 
-  return { title, desc, tags, category, metafields, colors, sizes };
+  // Color image indices: "ColorName: N" lines mapping each color to its image index
+  const colorImageIndices = {};
+  const indicesRaw = get(raw, /COLOR IMAGE INDICES\s*\n([\s\S]+?)(?:\n---|\s*$)/);
+  if (indicesRaw) {
+    for (const line of indicesRaw.split('\n')) {
+      const m = line.match(/^(.+?):\s*(\d+)\s*$/);
+      if (m) colorImageIndices[m[1].trim()] = parseInt(m[2], 10);
+    }
+  }
+
+  return { title, desc, tags, category, metafields, colors, sizes, colorImageIndices };
 }
 
 // ── Claude API call ───────────────────────────────────────────────────────────
@@ -335,7 +362,7 @@ async function generate(imageUrls, competitorTitle) {
     ],
   });
 
-  if (res.error) throw new Error(`Claude error: ${res.error.message}`);
+  if (res.error) throw new Error(`Claude error: ${res.error.message || JSON.stringify(res.error)}`);
   if (!res.content?.[0]?.text) throw new Error('Empty Claude response');
 
   const raw    = res.content[0].text;
@@ -343,6 +370,9 @@ async function generate(imageUrls, competitorTitle) {
 
   log.info(`[ai] Generated title: "${parsed.title}"`);
   log.debug(`[ai] Colors: ${parsed.colors.join(', ')} | Sizes: ${parsed.sizes.join(', ')}`);
+  if (Object.keys(parsed.colorImageIndices).length > 0) {
+    log.debug(`[ai] Image map: ${Object.entries(parsed.colorImageIndices).map(([c, i]) => `${c}→img[${i}]`).join(', ')}`);
+  }
 
   return parsed;
 }

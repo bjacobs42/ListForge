@@ -39,7 +39,8 @@ async function run() {
 
     await markProcessing(gToken, rows);
 
-    for (const row of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       summary.processed++;
       try {
         let result;
@@ -48,7 +49,7 @@ async function run() {
         } else {
           result = await withRetry(() => runQuotedFlow(row, gToken), `quotedFlow row ${row.rowNum}`);
         }
-        await markListed(gToken, row, result.adminUrl, result.title);
+        await markListed(gToken, row, result.adminUrl, result.title, result.price);
         summary.succeeded++;
         summary.rows.push({ rowNum: row.rowNum, status: 'success', title: result.title });
         log.info(`[pipeline] Row ${row.rowNum} done — ${result.adminUrl}`);
@@ -60,7 +61,7 @@ async function run() {
       }
 
       // 2-second gap between products
-      if (rows.indexOf(row) < rows.length - 1) await sleep(2000);
+      if (i < rows.length - 1) await sleep(2000);
     }
   } finally {
     await releaseLock(gToken);
