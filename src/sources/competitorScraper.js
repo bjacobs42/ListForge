@@ -21,7 +21,11 @@ function fetchUrl(url, maxRedirects = 5) {
     }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         req.destroy();
-        return resolve(fetchUrl(res.headers.location, maxRedirects - 1));
+        // location may be relative ("/products/...") — resolve against the original URL
+        const next = res.headers.location.startsWith('http')
+          ? res.headers.location
+          : new URL(res.headers.location, url).href;
+        return resolve(fetchUrl(next, maxRedirects - 1));
       }
       let raw = '';
       res.on('data', c => raw += c);

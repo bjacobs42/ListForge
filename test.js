@@ -141,36 +141,40 @@ test('empty image list → empty results', () => {
 
 // ── parseSizesFromVariants ────────────────────────────────────────────────────
 console.log('\nparseSizesFromVariants');
-test('parses "Color-Size" compound names', () => {
+test('reads variantKey ("Black-XL") — real CJ format', () => {
   const sizes = parseSizesFromVariants([
-    { variantNameEn: 'Black-XL' },
-    { variantNameEn: 'Red-M' },
-    { variantNameEn: 'Blue-XL' },
+    { variantKey: 'Black-XL',  variantNameEn: 'Product Name Black' },
+    { variantKey: 'Red-M',     variantNameEn: 'Product Name Red' },
+    { variantKey: 'Blue-XL',   variantNameEn: 'Product Name Blue' },
   ]);
   assert.ok(sizes.includes('XL'));
   assert.ok(sizes.includes('M'));
   assert.strictEqual(sizes.length, 2);
 });
-test('parses numeric sizes', () => {
-  const sizes = parseSizesFromVariants([{ variantNameEn: '32' }, { variantNameEn: '34' }]);
-  assert.ok(sizes.includes('32'));
-  assert.ok(sizes.includes('34'));
-});
-test('XXL normalised to 2XL', () => {
-  const sizes = parseSizesFromVariants([{ variantNameEn: 'White-XXL' }]);
+test('XXL in variantKey normalised to 2XL', () => {
+  const sizes = parseSizesFromVariants([{ variantKey: 'White-XXL' }]);
   assert.ok(sizes.includes('2XL'));
   assert.ok(!sizes.includes('XXL'));
 });
-test('non-size part (color name) ignored', () => {
-  const sizes = parseSizesFromVariants([{ variantNameEn: 'Default' }]);
+test('falls back to variantNameEn when variantKey absent', () => {
+  const sizes = parseSizesFromVariants([{ variantNameEn: 'Green-S' }]);
+  assert.ok(sizes.includes('S'));
+});
+test('falls back to variantName when both others absent', () => {
+  const sizes = parseSizesFromVariants([{ variantName: 'Blue-L' }]);
+  assert.ok(sizes.includes('L'));
+});
+test('parses numeric sizes from variantKey', () => {
+  const sizes = parseSizesFromVariants([{ variantKey: '32' }, { variantKey: '34' }]);
+  assert.ok(sizes.includes('32'));
+  assert.ok(sizes.includes('34'));
+});
+test('non-size tokens ignored', () => {
+  const sizes = parseSizesFromVariants([{ variantKey: 'Default', variantNameEn: 'Default' }]);
   assert.strictEqual(sizes.length, 0);
 });
 test('empty input → empty array', () => {
   assert.deepStrictEqual(parseSizesFromVariants([]), []);
-});
-test('falls back to variantName when variantNameEn absent', () => {
-  const sizes = parseSizesFromVariants([{ variantName: 'Green-S' }]);
-  assert.ok(sizes.includes('S'));
 });
 
 // ── parseOutput ───────────────────────────────────────────────────────────────

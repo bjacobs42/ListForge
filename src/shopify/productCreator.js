@@ -108,15 +108,25 @@ async function getMetaobjectEntries(type) {
     }
   `, { type });
   const nodes = result?.data?.metaobjects?.nodes || [];
+  if (nodes.length > 0) {
+    log.debug(`[shopify] Metaobject "${type}": ${nodes.length} entries. Sample: ${JSON.stringify(nodes[0])}`);
+  } else if (result?.errors) {
+    log.debug(`[shopify] Metaobject "${type}" query errors: ${JSON.stringify(result.errors)}`);
+  }
   metaobjectCache[type] = nodes;
   return nodes;
 }
 
 async function findMetaobjectByLabel(type, label) {
   const entries = await getMetaobjectEntries(type);
+  if (entries.length === 0) {
+    log.debug(`[shopify] Metaobject type "${type}" returned 0 entries — check that read_metaobjects scope is on the access token`);
+    return null;
+  }
   const needle  = label.toLowerCase().trim();
   for (const e of entries) {
-    const lf = e.fields.find(f => f.key === 'label');
+    // Shopify taxonomy metaobjects use 'name'; custom ones often use 'label'
+    const lf = e.fields.find(f => f.key === 'name' || f.key === 'label');
     if (lf?.value?.toLowerCase().trim() === needle) return e.id;
   }
   const handleMatch = entries.find(e => e.handle && e.handle.toLowerCase().replace(/-/g, ' ') === needle);
@@ -136,8 +146,18 @@ function lookupTaxonomyValue(attrKey, rawValue) {
 
 async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes, tags) {
   Object.keys(metaobjectCache).forEach(k => delete metaobjectCache[k]);
-  const metafieldsToSet = [];
 
+  // Accumulate GIDs per metafield key. Both "pattern" (from parsedMetafields) and
+  // "colors" write to shopify.color-pattern — accumulating prevents the second call
+  // from overwriting the first; they get merged into one combined list.
+  const accumulator = {}; // `namespace.key` → { namespace, key, gids: [] }
+  function addGid(namespace, key, gid) {
+    const k = `${namespace}.${key}`;
+    if (!accumulator[k]) accumulator[k] = { namespace, key, gids: [] };
+    accumulator[k].gids.push(gid);
+  }
+
+  // ── Parsed metafields (fit, neckline, sleeve, occasion, pattern) ──────────
   for (const mf of parsedMetafields) {
     const taxKey        = METAFIELD_TO_TAXONOMY[mf.key];
     if (!taxKey) continue;
@@ -160,51 +180,40 @@ async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes
     }
 
     if (!gid) { log.debug(`[shopify] No metaobject for ${mf.key}: "${mf.value}"`); continue; }
-    metafieldsToSet.push({
-      ownerId: productGid,
-      namespace: metafieldKey.namespace,
-      key: metafieldKey.key,
-      type: 'list.metaobject_reference',
-      value: JSON.stringify([gid]),
-    });
+    addGid(metafieldKey.namespace, metafieldKey.key, gid);
   }
 
-  // Colors — collect all GIDs first, then push once (like sizes)
-  const colorGids = [];
+  // ── Colors ────────────────────────────────────────────────────────────────
   for (const color of colors) {
     const gid = await findMetaobjectByLabel('shopify--color-pattern', color).catch(() => null);
-    if (gid) colorGids.push(gid);
-    else log.debug(`[shopify] Color not found in metaobjects: "${color}"`);
-  }
-  if (colorGids.length > 0) {
-    metafieldsToSet.push({ ownerId: productGid, namespace: 'shopify', key: 'color-pattern', type: 'list.metaobject_reference', value: JSON.stringify(colorGids) });
+    if (gid) addGid('shopify', 'color-pattern', gid);
+    else log.debug(`[shopify] Color not found in metaobjects: "${color}" — add manually`);
   }
 
-  // Sizes
-  const sizeGids = [];
+  // ── Sizes ─────────────────────────────────────────────────────────────────
   for (const size of sizes) {
     const gid = await findMetaobjectByLabel('shopify--size', size).catch(() => null);
-    if (gid) sizeGids.push(gid);
-  }
-  if (sizeGids.length > 0) {
-    metafieldsToSet.push({ ownerId: productGid, namespace: 'shopify', key: 'size', type: 'list.metaobject_reference', value: JSON.stringify(sizeGids) });
+    if (gid) addGid('shopify', 'size', gid);
+    else log.debug(`[shopify] Size not found in metaobjects: "${size}"`);
   }
 
-  // Age group — always Adults
+  // ── Age group — always Adults ─────────────────────────────────────────────
   const ageGid = await findMetaobjectByLabel('shopify--age-group', 'Adults').catch(() => null);
-  if (ageGid) {
-    metafieldsToSet.push({ ownerId: productGid, namespace: 'shopify', key: 'age-group', type: 'list.metaobject_reference', value: JSON.stringify([ageGid]) });
-  }
+  if (ageGid) addGid('shopify', 'age-group', ageGid);
 
-  // Gender from tags
+  // ── Gender from tags ──────────────────────────────────────────────────────
   const tagStr = (tags || '').toLowerCase();
   const genderLabel = tagStr.includes('women') ? 'Female' : null;
   if (genderLabel) {
     const gid = await findMetaobjectByLabel('shopify--target-gender', genderLabel).catch(() => null);
-    if (gid) {
-      metafieldsToSet.push({ ownerId: productGid, namespace: 'shopify', key: 'target-gender', type: 'list.metaobject_reference', value: JSON.stringify([gid]) });
-    }
+    if (gid) addGid('shopify', 'target-gender', gid);
   }
+
+  const metafieldsToSet = Object.values(accumulator).map(({ namespace, key, gids }) => ({
+    ownerId: productGid, namespace, key,
+    type: 'list.metaobject_reference',
+    value: JSON.stringify(gids),
+  }));
 
   if (metafieldsToSet.length === 0) return;
 
@@ -293,6 +302,31 @@ function parseMetafields(metafieldsStr) {
 // ── Taxonomy category ─────────────────────────────────────────────────────────
 
 const taxonomyCache = {};
+let publicationsCache = null;
+
+async function getAllPublications() {
+  if (publicationsCache) return publicationsCache;
+  const result = await shopifyGraphQL(`{ publications(first: 20) { nodes { id name } } }`);
+  publicationsCache = result?.data?.publications?.nodes || [];
+  log.info(`[shopify] Publications: ${publicationsCache.map(p => p.name).join(', ')}`);
+  return publicationsCache;
+}
+
+async function publishToAllChannels(productGid) {
+  const pubs = await getAllPublications();
+  if (pubs.length === 0) return;
+  const result = await shopifyGraphQL(`
+    mutation publish($id: ID!, $input: [PublicationInput!]!) {
+      publishablePublish(id: $id, input: $input) {
+        publishable { ... on Product { id } }
+        userErrors { field message }
+      }
+    }
+  `, { id: productGid, input: pubs.map(p => ({ publicationId: p.id })) });
+  const errors = result?.data?.publishablePublish?.userErrors || [];
+  if (errors.length > 0) log.debug(`[shopify] Publish errors: ${JSON.stringify(errors)}`);
+  else log.info(`[shopify] Published to ${pubs.length} channel(s)`);
+}
 
 async function findTaxonomyCategoryId(categoryStr) {
   if (!categoryStr?.trim()) return null;
@@ -303,8 +337,12 @@ async function findTaxonomyCategoryId(categoryStr) {
       taxonomy { categories(first: 20, search: $search) { nodes { id name fullName } } }
     }
   `, { search: searchTerm });
+  if (result?.errors) {
+    log.debug(`[shopify] Taxonomy query errors: ${JSON.stringify(result.errors)}`);
+  }
   const nodes = result?.data?.taxonomy?.categories?.nodes || [];
   const exact = nodes.find(n => n.fullName.toLowerCase() === categoryStr.toLowerCase());
+  if (!exact) log.debug(`[shopify] Category not found in taxonomy: "${categoryStr}" (${nodes.length} candidates)`);
   taxonomyCache[categoryStr] = exact?.id || null;
   return taxonomyCache[categoryStr];
 }
@@ -356,7 +394,10 @@ async function createProduct({ title, desc, tags, category, metafields, variants
   // 3. Set taxonomy category
   try {
     const categoryId = await findTaxonomyCategoryId(category);
-    if (categoryId) await setProductCategory(productGid, categoryId);
+    if (categoryId) {
+      await setProductCategory(productGid, categoryId);
+      log.info(`[shopify] Category set: ${category}`);
+    }
   } catch (err) {
     log.debug(`[shopify] Category error (non-fatal): ${err.message}`);
   }
@@ -403,6 +444,13 @@ async function createProduct({ title, desc, tags, category, metafields, variants
           .catch(err => log.debug(`[shopify] Variant image link failed: ${err.message}`));
       }
     }
+  }
+
+  // 8. Publish to all sales channels
+  try {
+    await publishToAllChannels(productGid);
+  } catch (err) {
+    log.debug(`[shopify] Publish error (non-fatal): ${err.message}`);
   }
 
   const adminUrl = `https://admin.shopify.com/store/${cfg.SHOPIFY_STORE_SLUG}/products/${productId}`;

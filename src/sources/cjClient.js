@@ -52,20 +52,29 @@ function extractProductId(cjUrl) {
   return match ? match[1] : null;
 }
 
-// Extract unique size labels from variant names like "Black-XL", "Red-M", "32", "S/M"
+// Extract unique size labels from CJ variant objects.
+// variantKey ("Black-XL", "Red-M") is the most reliable source — it's a structured
+// Color-Size key. variantNameEn ("Product Name Black") is a full label and rarely contains
+// a standalone size token, but we check it as a fallback.
 function parseSizesFromVariants(variants) {
   const sizes = new Set();
   const sizePattern = /^(xs|s|m|l|xl|xxl|2xl|3xl|4xl|5xl|one size|\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?)$/i;
 
   for (const v of variants) {
-    const name = (v.variantNameEn || v.variantName || '').trim();
-    if (!name) continue;
+    // Check variantKey first ("Black-XL"), then fall back to variantNameEn / variantName
+    const sources = [
+      (v.variantKey     || '').trim(),
+      (v.variantNameEn  || '').trim(),
+      (v.variantName    || '').trim(),
+    ];
 
-    // Split "Color-Size" or "Color/Size" compound names
-    const parts = name.split(/[-\/]/).map(p => p.trim()).filter(Boolean);
-    for (const part of parts) {
-      if (sizePattern.test(part)) {
-        sizes.add(part.toUpperCase().replace('XXL', '2XL'));
+    for (const source of sources) {
+      if (!source) continue;
+      const parts = source.split(/[-\/]/).map(p => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        if (sizePattern.test(part)) {
+          sizes.add(part.toUpperCase().replace('XXL', '2XL'));
+        }
       }
     }
   }
@@ -85,6 +94,9 @@ async function getSizes(cjUrl) {
     const token    = await getAccessToken();
     const res      = await cjRequest('GET', `/product/query?pid=${pid}`, token);
     const variants = res.body?.data?.variants || [];
+    if (variants.length === 0) {
+      log.debug(`[cj] Zero variants for ${pid}. data keys: ${Object.keys(res.body?.data || {}).join(', ')}`);
+    }
     const sizes    = parseSizesFromVariants(variants);
     log.info(`[cj] Product ${pid}: ${sizes.length} size(s) found`);
     return sizes;
