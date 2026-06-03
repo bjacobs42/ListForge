@@ -6,7 +6,7 @@
 const https = require('https');
 const cfg   = require('../config');
 
-function shopifyRest(method, path, body) {
+function shopifyRest(method, path, body, _retries = 0) {
   return new Promise((resolve, reject) => {
     const data = body ? JSON.stringify(body) : null;
     const req  = https.request({
@@ -25,9 +25,10 @@ function shopifyRest(method, path, body) {
         try {
           const parsed = JSON.parse(raw);
           if (res.statusCode === 429) {
+            if (_retries >= 5) return reject(new Error(`Shopify rate limit: too many 429s on ${method} ${path}`));
             const wait = parseInt(res.headers['retry-after'] || '2', 10) * 1000;
             await new Promise(r => setTimeout(r, wait));
-            resolve(shopifyRest(method, path, body));
+            resolve(shopifyRest(method, path, body, _retries + 1));
           } else {
             resolve({ status: res.statusCode, body: parsed });
           }

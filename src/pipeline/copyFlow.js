@@ -47,7 +47,7 @@ async function runCopyFlow(row) {
   if (sizes.length === 0 && ai.sizes.length > 0) sizes = ai.sizes;
 
   // 5. Image processing
-  const { deduped, variantImageMap } = processImages(scraped.images, colors);
+  const { deduped, variantImageMap } = processImages(scraped.images, colors, ai.colorImageIndices || {});
 
   // 6. Build variants
   const price   = row.storePrice || row.suggestedPrice;

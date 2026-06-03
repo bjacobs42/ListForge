@@ -39,8 +39,6 @@ const TAXONOMY_VALUES = {
     'turtle': 'gid://shopify/TaxonomyValue/6715', 'turtle neck': 'gid://shopify/TaxonomyValue/6715',
     'plunging': 'gid://shopify/TaxonomyValue/6713', 'deep v': 'gid://shopify/TaxonomyValue/6713',
     'strapless': 'gid://shopify/TaxonomyValue/177', 'wrap': 'gid://shopify/TaxonomyValue/6716',
-    // "Turtle" is the store label for turtleneck — same GID
-    'turtle': 'gid://shopify/TaxonomyValue/6715', 'turtle neck': 'gid://shopify/TaxonomyValue/6715',
     // mock, hooded, asymmetric resolve via findMetaobjectByLabel handle match — no GID needed
   },
   sleeve_length: {
@@ -74,29 +72,93 @@ const TAXONOMY_VALUES = {
 };
 
 const TAXONOMY_METAFIELD_KEYS = {
-  fit:           { namespace: 'shopify', key: 'fit' },
-  neckline:      { namespace: 'shopify', key: 'neckline' },
-  sleeve_length: { namespace: 'shopify', key: 'sleeve-length-type' },
-  pattern:       { namespace: 'shopify', key: 'color-pattern' },
-  target_gender: { namespace: 'shopify', key: 'target-gender' },
-  occasion:      { namespace: 'shopify', key: 'occasion-style' },
+  fit:            { namespace: 'shopify', key: 'fit' },
+  neckline:       { namespace: 'shopify', key: 'neckline' },
+  sleeve_length:  { namespace: 'shopify', key: 'sleeve-length-type' },
+  pattern:        { namespace: 'shopify', key: 'color-pattern' },
+  target_gender:  { namespace: 'shopify', key: 'target-gender' },
+  occasion:       { namespace: 'shopify', key: 'occasion-style' },
+  pants_length:   { namespace: 'shopify', key: 'pants-length-type' },
+  one_piece_style:{ namespace: 'shopify', key: 'one-piece-style' },
 };
 
 const TAXONOMY_METAOBJECT_TYPES = {
-  fit:           'shopify--fit',
-  neckline:      'shopify--neckline',
-  sleeve_length: 'shopify--sleeve-length-type',
-  pattern:       'shopify--color-pattern',
-  target_gender: 'shopify--target-gender',
-  occasion:      'shopify--occasion-style',
-  size:          'shopify--size',
-  age_group:     'shopify--age-group',
-  color_pattern: 'shopify--color-pattern',
+  fit:            'shopify--fit',
+  neckline:       'shopify--neckline',
+  sleeve_length:  'shopify--sleeve-length-type',
+  pattern:        'shopify--color-pattern',
+  target_gender:  'shopify--target-gender',
+  occasion:       'shopify--occasion-style',
+  size:           'shopify--size',
+  age_group:      'shopify--age-group',
+  color_pattern:  'shopify--color-pattern',
+  pants_length:   'shopify--pants-length-type',
+  one_piece_style:'shopify--one-piece-style',
 };
 
 const METAFIELD_TO_TAXONOMY = {
   fit: 'fit', neckline: 'neckline', sleeve_length: 'sleeve_length',
   pattern: 'pattern', gender: 'target_gender', occasion: 'occasion',
+  pants_length: 'pants_length', one_piece_style: 'one_piece_style',
+};
+
+// Maps category leaf name (last ">" segment) to the METAFIELD_TO_TAXONOMY shortkeys
+// that Shopify accepts for that category. Based on Shopify product taxonomy attributes:
+// Dresses (aa-1-4), One-Pieces (aa-1-9), Pants (aa-1-12), Shorts (aa-1-14),
+// Skirts (aa-1-15), Suits (aa-1-19), Swimwear (aa-1-20), Tops (aa-1-13), etc.
+const CATEGORY_TAXONOMY_ALLOWLIST = {
+  'Dresses':           ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'One-Pieces':        ['neckline', 'sleeve_length', 'occasion', 'pattern', 'one_piece_style', 'pants_length'],
+  'Clothing Tops':     ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Blouses':           ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Bodysuits':         ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Cardigans':         ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Hoodies':           ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Overshirts':        ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Shirts':            ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Sweaters':          ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Sweatshirts':       ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'T-Shirts':          ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Tank Tops':         ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Outfit Sets':       ['fit', 'neckline', 'sleeve_length', 'occasion', 'pattern', 'pants_length'],
+  'Pants':             ['fit', 'occasion', 'pattern', 'pants_length'],
+  'Trousers':          ['fit', 'occasion', 'pattern', 'pants_length'],
+  'Jeans':             ['fit', 'pattern', 'pants_length'],
+  'Joggers':           ['fit', 'occasion', 'pattern', 'pants_length'],
+  'Leggings':          ['occasion', 'pattern'],
+  'Shorts':            ['fit', 'occasion', 'pattern'],
+  'Skirts':            ['occasion', 'pattern'],
+  'Suits':             ['neckline', 'sleeve_length', 'occasion', 'pattern'],
+  'Outerwear':         ['sleeve_length', 'occasion', 'pattern'],
+  'Coats & Jackets':   ['sleeve_length', 'occasion', 'pattern'],
+  'Bomber Jackets':    ['sleeve_length', 'occasion', 'pattern'],
+  'Overcoats':         ['sleeve_length', 'occasion', 'pattern'],
+  'Puffer Jackets':    ['sleeve_length', 'occasion', 'pattern'],
+  'Trench Coats':      ['sleeve_length', 'occasion', 'pattern'],
+  'Swimwear':          ['sleeve_length', 'pattern'],
+  'Activewear':        ['sleeve_length', 'occasion', 'pattern'],
+  'Shoes':             ['occasion', 'pattern'],
+  'Heels':             ['occasion', 'pattern'],
+  'Boots':             ['occasion', 'pattern'],
+  'Sandals':           ['occasion', 'pattern'],
+  'Flats':             ['occasion', 'pattern'],
+  'Sneakers':          ['occasion', 'pattern'],
+  'Handbags':          ['pattern'],
+  'Clutch Bags':       ['pattern'],
+  'Cross Body Bags':   ['pattern'],
+  'Shoulder Bags':     ['pattern'],
+  'Jewelry': [], 'Earrings': [], 'Necklaces': [],
+  'Belts': [], 'Hats': [], 'Scarves & Shawls': [], 'Sunglasses': [],
+};
+
+// Maps AI-generated values to the store's actual metaobject label for cases where
+// the store uses fewer, broader labels than the AI prompt vocabulary.
+// For occasion-style the store only has "Dress" (formal/evening) and "Casual".
+const METAOBJECT_LABEL_ALIASES = {
+  'shopify--occasion-style': {
+    'evening': 'dress', 'formal': 'dress', 'party': 'dress', 'wedding': 'dress',
+    'work': 'casual', 'smart casual': 'casual',
+  },
 };
 
 // ── Metaobject cache (per function invocation) ────────────────────────────────
@@ -127,14 +189,24 @@ async function findMetaobjectByLabel(type, label) {
     log.debug(`[shopify] Metaobject type "${type}" returned 0 entries — check that read_metaobjects scope is on the access token`);
     return null;
   }
-  const needle  = label.toLowerCase().trim();
-  for (const e of entries) {
-    // Shopify taxonomy metaobjects use 'name'; custom ones often use 'label'
-    const lf = e.fields.find(f => f.key === 'name' || f.key === 'label');
-    if (lf?.value?.toLowerCase().trim() === needle) return e.id;
+  const needle = label.toLowerCase().trim();
+
+  function matchEntries(target) {
+    for (const e of entries) {
+      const lf = e.fields.find(f => f.key === 'name' || f.key === 'label');
+      if (lf?.value?.toLowerCase().trim() === target) return e.id;
+    }
+    const hm = entries.find(e => e.handle && e.handle.toLowerCase().replace(/-/g, ' ') === target);
+    return hm?.id || null;
   }
-  const handleMatch = entries.find(e => e.handle && e.handle.toLowerCase().replace(/-/g, ' ') === needle);
-  return handleMatch?.id || null;
+
+  const direct = matchEntries(needle);
+  if (direct) return direct;
+
+  // Try alias — e.g. "Evening" → "dress" for stores with fewer occasion labels
+  const aliases = METAOBJECT_LABEL_ALIASES[type] || {};
+  const aliased = aliases[needle];
+  return aliased ? matchEntries(aliased) : null;
 }
 
 function lookupTaxonomyValue(attrKey, rawValue) {
@@ -148,8 +220,17 @@ function lookupTaxonomyValue(attrKey, rawValue) {
   return null;
 }
 
-async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes, tags) {
-  Object.keys(metaobjectCache).forEach(k => delete metaobjectCache[k]);
+async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes, tags, category) {
+  // Filter parsedMetafields to only the taxonomy keys Shopify accepts for this category.
+  // Unknown categories (undefined in allowlist) pass through all keys as a safe default.
+  const leaf = (category || '').split('>').pop().trim();
+  const allowed = CATEGORY_TAXONOMY_ALLOWLIST[leaf];
+  const filteredMf = allowed
+    ? parsedMetafields.filter(mf => {
+        const taxKey = METAFIELD_TO_TAXONOMY[mf.key];
+        return taxKey && allowed.includes(taxKey);
+      })
+    : parsedMetafields;
 
   // Accumulate GIDs per metafield key. Both "pattern" (from parsedMetafields) and
   // "colors" write to shopify.color-pattern — accumulating prevents the second call
@@ -162,7 +243,7 @@ async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes
   }
 
   // ── Parsed metafields (fit, neckline, sleeve, occasion, pattern) ──────────
-  for (const mf of parsedMetafields) {
+  for (const mf of filteredMf) {
     const taxKey        = METAFIELD_TO_TAXONOMY[mf.key];
     if (!taxKey) continue;
     const metaobjectType = TAXONOMY_METAOBJECT_TYPES[taxKey];
@@ -171,11 +252,16 @@ async function setTaxonomyAttributes(productGid, parsedMetafields, colors, sizes
 
     let gid = null;
     try {
-      const taxVal = lookupTaxonomyValue(taxKey, mf.value);
-      if (taxVal) {
-        const entries = await getMetaobjectEntries(metaobjectType);
-        for (const e of entries) {
-          if (e.fields.some(f => f.value && f.value.includes(taxVal))) { gid = e.id; break; }
+      // For color-pattern, skip the GID-based search: the pattern_taxonomy_reference field
+      // is shared across every solid-coloured item (Yellow, Black, etc.) so a GID search
+      // for "Solid" would hit those colour entries first. Label lookup is reliable here.
+      if (taxKey !== 'pattern') {
+        const taxVal = lookupTaxonomyValue(taxKey, mf.value);
+        if (taxVal) {
+          const entries = await getMetaobjectEntries(metaobjectType);
+          for (const e of entries) {
+            if (e.fields.some(f => f.value && f.value.includes(taxVal))) { gid = e.id; break; }
+          }
         }
       }
       if (!gid) gid = await findMetaobjectByLabel(metaobjectType, mf.value);
@@ -471,14 +557,21 @@ async function createProduct({ title, desc, tags, category, metafields, variants
 
   // 4. Set custom metafields via REST
   const parsedMf = parseMetafields(metafields);
+  let mfOk = 0;
   for (const mf of parsedMf) {
     const r = await shopifyRest('POST', `/products/${productId}/metafields.json`, { metafield: mf });
-    log.debug(`[shopify] Metafield ${mf.namespace}.${mf.key} → HTTP ${r.status}`);
+    if (r.status === 201) {
+      mfOk++;
+      log.debug(`[shopify] Metafield ${mf.namespace}.${mf.key} = "${mf.value}"`);
+    } else {
+      log.info(`[shopify] Metafield ${mf.namespace}.${mf.key} FAILED (HTTP ${r.status}): ${JSON.stringify(r.body?.errors || r.body)}`);
+    }
   }
+  if (parsedMf.length > 0) log.info(`[shopify] Custom metafields: ${mfOk}/${parsedMf.length} set`);
 
   // 5. Set taxonomy attributes (colors, sizes, gender, etc.)
   try {
-    await setTaxonomyAttributes(productGid, parsedMf, colors, sizes, tags);
+    await setTaxonomyAttributes(productGid, parsedMf, colors, sizes, tags, category);
   } catch (err) {
     log.debug(`[shopify] Taxonomy attrs error (non-fatal): ${err.message}`);
   }

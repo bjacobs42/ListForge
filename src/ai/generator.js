@@ -129,11 +129,8 @@ COLOR IMAGE INDICES
 
 ---
 METAFIELDS
-custom.fit: [bottoms and tailored jackets only — EXACT value from: Slim, Straight Leg, Wide. Omit entirely for dresses, skirts, tops.]
-custom.neckline: [EXACT value from: Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
-custom.sleeve_length: [EXACT value from: Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
-custom.occasion: [EXACT value from: Casual, Evening, Work, Smart Casual, Party, Formal, Wedding]
-custom.pattern: [EXACT value from: Solid, Floral, Striped, Abstract, Geometric, Animal Print, Color Block, Ombre, Paisley, Polka Dot]
+[Include only the fields applicable to your chosen category. One field per line in format: namespace.key: value
+See METAFIELD RULES in the CATEGORY section below for exactly which fields apply.]
 `;
 
 const CATEGORY_LIST = `
@@ -149,7 +146,9 @@ CATEGORY RULES — read before choosing:
 - Pants → "Apparel & Accessories > Clothing > Pants > Trousers"
 - Leggings → "Apparel & Accessories > Clothing > Pants > Leggings"
 - Shorts → "Apparel & Accessories > Clothing > Shorts"
-- Jumpsuits / Rompers → "Apparel & Accessories > Clothing > One-Pieces"
+- Women's suits (two separate pieces: jacket + pants OR jacket + skirt worn together as a coordinated set) → "Apparel & Accessories > Clothing > Suits"
+  CRITICAL DISTINCTION: A suit = two SEPARATE garments. A jumpsuit = ONE continuous garment. If the top and bottom can be separated as individual pieces, it is a Suit (or Outfit Set) — never a One-Piece.
+- Jumpsuits / Rompers (single garment combining top & bottom in one continuous piece) → "Apparel & Accessories > Clothing > One-Pieces"
 - Coats / Jackets → "Apparel & Accessories > Clothing > Outerwear > Coats & Jackets"
 - Swimwear → "Apparel & Accessories > Clothing > Swimwear"
 - Heels / Stilettos → "Apparel & Accessories > Shoes > Heels"
@@ -209,13 +208,82 @@ VALID CATEGORY LIST — only these exact strings are accepted:
 "Apparel & Accessories > Shoes > Sandals"
 "Apparel & Accessories > Shoes > Sneakers"
 
----
-METAFIELDS
-custom.fit: [bottoms/jackets only — Slim, Straight Leg, Wide. Omit for dresses/skirts/tops.]
-custom.neckline: [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
-custom.sleeve_length: [Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
-custom.occasion: [Casual, Evening, Work, Smart Casual, Party, Formal, Wedding]
-custom.pattern: [Solid, Floral, Striped, Abstract, Geometric, Animal Print, Color Block, Ombre, Paisley, Polka Dot]
+METAFIELD RULES — include ONLY the fields listed for your chosen category. Omit fields not listed. Never output a placeholder — omit the line entirely if the value cannot be determined from the images.
+
+UNIVERSAL — include for all wearable clothing categories:
+  custom.occasion:           [Casual, Evening, Work, Smart Casual, Party, Formal, Wedding]
+  custom.pattern:            Design PATTERN only — NEVER a color name. Exact value from: [Solid, Floral, Striped, Abstract, Geometric, Animal Print, Color Block, Ombre, Paisley, Polka Dot]. Use "Solid" for any single-color garment regardless of what that color is (e.g. a yellow dress → Solid, a red top → Solid).
+  custom.clothing_features:  One or more visible construction features, comma-separated. Values: [Pockets, Lined, Stretch, Backless, Cut-out, Ruched, Smocked, Belted, Asymmetric Hem, Tiered, Oversized]. Omit this line entirely if none are clearly visible in the images.
+
+DRESSES ("...Dresses"):
+  custom.neckline:     [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  custom.dress_length: [Mini, Midi, Maxi, Floor-length]
+  custom.dress_style:  [A-line, Bodycon, Wrap, Slip, Shirt Dress, Shift, Column]
+
+ONE-PIECES ("...One-Pieces" — jumpsuits, rompers, playsuits):
+  custom.one_piece_style:[Jumpsuit, Romper, Playsuit, Overalls, Bodysuit]
+  custom.neckline:     [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  custom.pants_length: [Long, Cropped, Capri, Above the knee, Knee]
+  DO NOT include custom.fit for One-Pieces.
+
+CLOTHING TOPS — all tops subcategories (Blouses, Shirts, T-Shirts, Tank Tops, Sweaters, Cardigans, Bodysuits, Hoodies, Sweatshirts, Overshirts):
+  custom.neckline:     [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  custom.top_length:   [Crop, Regular, Longline]
+
+OUTFIT SETS ("...Outfit Sets"):
+  custom.neckline:     [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  custom.top_length:   [Crop, Regular, Longline]
+  custom.fit:          [Slim, Straight Leg, Wide]  — for sets that include pants or a blazer; omit for top+skirt sets
+  custom.waist_rise:   [High Rise, Mid Rise, Low Rise]  — for sets that include pants or a skirt; omit for top+blazer sets
+  custom.pants_length: [Long, Cropped, Capri, Above the knee, Knee]  — for sets that include pants; omit for top+skirt sets
+  custom.skirt_length: [Mini, Midi, Maxi, Floor-length]  — for sets that include a skirt; omit for top+pants sets
+  custom.skirt_style:  [A-line, Pencil, Wrap, Pleated, Tiered, Bubble]  — for sets that include a skirt; omit for top+pants sets
+
+SUITS ("...Suits"):
+  custom.neckline:     [Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  DO NOT include custom.fit for Suits.
+
+OUTERWEAR ("...Outerwear", "...Coats & Jackets" and all subtypes):
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  DO NOT include custom.fit for Outerwear.
+
+PANTS — all Pants subcategories (Trousers, Jeans, Joggers, Leggings, Cargo Pants):
+  custom.fit:          [Slim, Straight Leg, Wide]
+  custom.waist_rise:   [High Rise, Mid Rise, Low Rise]
+  custom.pants_length: [Long, Cropped, Capri, Above the knee, Knee]  — omit pants_length for Leggings
+
+SHORTS:
+  custom.fit:          [Slim, Straight Leg, Wide]
+  custom.waist_rise:   [High Rise, Mid Rise, Low Rise]
+
+SKIRTS:
+  custom.skirt_length: [Mini, Midi, Maxi, Floor-length]
+  custom.skirt_style:  [A-line, Pencil, Wrap, Pleated, Tiered, Bubble]
+  custom.waist_rise:   [High Rise, Mid Rise, Low Rise]
+
+SWIMWEAR:
+  custom.swimwear_style:[Bikini Set, One-Piece, Tankini, Monokini, Swim Dress]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+  Omit custom.occasion for Swimwear.
+
+ACTIVEWEAR:
+  custom.activity:     [Running, Yoga, Gym, Cycling, Swimming, Dancing, Hiking, Tennis]
+  custom.sleeve_length:[Sleeveless, Short, Long, 3/4, Cap, Spaghetti Strap]
+
+SHOES (Heels, Boots, Sandals, Flats, Sneakers):
+  custom.heel_height:  [Flat, Low, Mid, High, Platform]
+  custom.toe_style:    [Open Toe, Closed Toe, Peep Toe, Round Toe, Pointed Toe, Square Toe]
+  custom.closure_type: [Slip-on, Lace-up, Buckle, Zip, Ankle Strap]
+  Omit custom.occasion and custom.pattern for shoes unless clearly applicable.
+
+NON-CLOTHING (Handbags, Jewelry, Accessories):
+  custom.pattern: [only if the item has a clearly visible pattern — use same values as above]
+  No other metafields for non-clothing items.
 `;
 
 const SYSTEM_PROMPT = `You are a top-tier e-commerce copywriter for an American women's fashion webshop. Write in American English throughout (color, center, jewelry, pants, recognize, favorite, sneakers, sweater).
@@ -271,7 +339,10 @@ function get(raw, re) {
 function parseOutput(raw) {
   const title      = get(raw, /PRODUCT TITLE\s*\n([^\n]+)/);
   const desc       = get(raw, /PRODUCT DESCRIPTION\s*\n([\s\S]+?)(?=---\s*KEYWORDS USED IN DESCRIPTION)/);
-  const tags       = get(raw, /SHOPIFY TAGS\s*\n([^\n-][^\n]*)/);
+  const tagsRaw    = get(raw, /SHOPIFY TAGS\s*\n([^\n-][^\n]*)/);
+  const tags       = tagsRaw
+    ? [...new Set(tagsRaw.split(',').flatMap(t => t.trim().split(/\s+/)).filter(Boolean))].join(', ')
+    : '';
   const category   = get(raw, /SHOPIFY CATEGORY\s*\n([^\n-][^\n]*)/).replace(/"/g, '').trim();
   const metafields = get(raw, /(?:^|\n)METAFIELDS\s*\n([\s\S]+?)(?:\n---|\s*$)/);
 
@@ -343,7 +414,7 @@ async function generate(imageUrls, competitorTitle) {
 
   const res = await claudeRequest({
     model: cfg.CLAUDE_MODEL,
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: [
       {
         type: 'text',

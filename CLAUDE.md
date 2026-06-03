@@ -165,8 +165,9 @@ All 8 steps run in order for every product:
 1. POST /products.json                 — create draft (title, body_html, variants, options)
 2. PUT  /products/{id}.json            — set product_type
 3. GraphQL productUpdate               — set taxonomy category (from Claude SHOPIFY CATEGORY field)
-4. POST /products/{id}/metafields.json — set custom metafields (custom.fit, neckline, etc.)
+4. POST /products/{id}/metafields.json — set custom metafields (category-specific — see below)
 5. GraphQL metafieldsSet               — set taxonomy metafields (color-pattern, size, gender, age-group)
+   Filtered by CATEGORY_TAXONOMY_ALLOWLIST before sending — prevents Owner subtype errors.
    Accumulator pattern: colors + pattern both write to shopify.color-pattern; merged into one call.
    Unknown colors: logged as "add manually", skipped — no partial GID.
 6. GraphQL productOptionUpdate         — link Color/Size options to metafields (connected options).
@@ -186,11 +187,11 @@ Known types and current store entry counts (run `node check-metaobjects.js` for 
 
 | Type | Count | Notes |
 |------|-------|-------|
-| `shopify--fit` | 3 | Slim, Straight leg, Wide — omit for dresses/tops (Owner subtype error) |
-| `shopify--neckline` | 10 | Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck |
-| `shopify--sleeve-length-type` | 6 | Short, Long, Sleeveless, 3/4, Cap, Spaghetti Strap |
+| `shopify--fit` | 3 | Slim, Straight leg, Wide — only set for Pants, Shorts, Outfit Sets (see CATEGORY_TAXONOMY_ALLOWLIST) |
+| `shopify--neckline` | 11 | Asymmetric, Halter, Hooded, Mock, Plunging, Round, Square, Sweetheart, Turtle, V-neck |
+| `shopify--sleeve-length-type` | 7 | Short, Long, Sleeveless, 3/4, Cap, Spaghetti Strap |
 | `shopify--occasion-style` | 2 | Casual, Dress — add Evening/Work/Smart Casual/Party/Formal/Wedding in store |
-| `shopify--color-pattern` | 127 | Includes Multicolor, most standard fashion colors |
+| `shopify--color-pattern` | 129 | Includes Multicolor, most standard fashion colors |
 | `shopify--size` | 11 | XS, S, M, L, XL, 2XL, 3XL, 4XL, 5XL, One size, 3XS |
 | `shopify--age-group` | 1 | Adults |
 | `shopify--target-gender` | 1 | Female |
@@ -217,6 +218,26 @@ METAFIELDS             → parsed.metafields (raw string, parsed by parseMetafie
 **Color vs Multicolor rule:** Separate colorways → list each color. Prints/patterns (abstract, floral, tie-dye, etc.) → output `Multicolor` only.
 
 **COLOR IMAGE INDICES:** Only emitted for multi-colorway products. `imageProcessor.js` uses these indices to assign the correct image to each colorway. Falls back to stride-based grouping if the section is absent.
+
+**METAFIELDS — category-specific fields:** Claude only outputs the fields applicable to the chosen SHOPIFY CATEGORY. The METAFIELD RULES in the system prompt define which fields apply per category (sourced from Shopify product taxonomy). Custom fields (`custom.*`) are set via REST in step 4; taxonomy fields (`shopify.*`) are filtered by `CATEGORY_TAXONOMY_ALLOWLIST` before step 5.
+
+| Category group | Custom metafields emitted |
+|---|---|
+| Dresses | occasion, pattern, neckline, sleeve_length, dress_length, dress_style |
+| One-Pieces (jumpsuits) | occasion, pattern, one_piece_style, neckline, sleeve_length, pants_length |
+| Clothing Tops | occasion, pattern, neckline, sleeve_length, top_length |
+| Outfit Sets | occasion, pattern, neckline, sleeve_length, top_length, fit, waist_rise, pants_length OR skirt_length/skirt_style |
+| Suits | occasion, pattern, neckline, sleeve_length |
+| Outerwear | occasion, pattern, sleeve_length |
+| Pants | occasion, pattern, fit, waist_rise, pants_length |
+| Shorts | occasion, pattern, fit, waist_rise |
+| Skirts | occasion, pattern, skirt_length, skirt_style, waist_rise |
+| Swimwear | pattern, swimwear_style, sleeve_length |
+| Activewear | occasion, pattern, activity, sleeve_length |
+| Shoes | heel_height, toe_style, closure_type |
+| Non-clothing | pattern (if visibly patterned) |
+
+**Suit vs Jumpsuit distinction:** The category rules explicitly separate suits (two separate pieces → `...Suits`) from jumpsuits/rompers (one continuous garment → `...One-Pieces`). This prevents misclassification of tuxedo suits as jumpsuits.
 
 ---
 
@@ -291,7 +312,8 @@ processImages(imageUrls, colors, colorImageIndices={}) → { deduped, variantIma
 - **`getRows` returns a ragged array.** Always access cells as `(row[idx] || '').trim()`.
 - **Run lock:** Acquired at pipeline start via Config Sheet!D2. If the cell holds a timestamp less than `LOCK_TTL_MS` old, the run is skipped. Always released in a `finally` block.
 - **Accumulator pattern for `shopify.color-pattern`:** Both the pattern metafield and each color write to the same metafield key. The accumulator merges all GIDs before making a single `metafieldsSet` call. Without this, the second write silently overwrites the first.
-- **`shopify.fit` error on Dresses:** Shopify enforces "Owner subtype" constraints — `fit` only applies to certain product types (pants, jackets), not dresses. The Claude prompt instructs Claude to omit `fit` for dresses/tops, so this error should not appear.
+- **`shopify.fit` Owner subtype errors:** Shopify enforces category constraints — `fit` is only valid for Pants, Shorts, and Outfit Sets. `CATEGORY_TAXONOMY_ALLOWLIST` in `productCreator.js` pre-filters which taxonomy metafields are sent per category before step 5, eliminating these errors. The allowlist is derived from Shopify product taxonomy data (shopify.github.io/product-taxonomy). Unknown categories (not in the map) pass all keys through as a safe default.
+- **New category-specific custom metafields** (`custom.dress_length`, `custom.dress_style`, `custom.one_piece_style`, `custom.pants_length`, `custom.waist_rise`, `custom.skirt_length`, `custom.skirt_style`, `custom.top_length`, `custom.swimwear_style`, `custom.activity`, `custom.heel_height`, `custom.toe_style`, `custom.closure_type`) are stored as `single_line_text_field` via REST and require no Shopify store setup.
 - **Price format:** Prices in the sheet use EU format (`.` = thousands, `,` = decimal). `parsePrice()` strips `.` then replaces one `,` with `.`. Values like `49,99` → `49.99`. Single replacement is correct because EU prices have at most one comma.
 - **Canva token rotation:** Tokens are read from `Config Sheet!A2:C2`, used, and a refreshed token pair is written back. Never store Canva tokens in env vars — they expire and the sheet is the source of truth.
 - **Cloudflare-protected competitors:** Stores like scacto.com return a bot challenge page. Scraping returns 0 images and the row fails/resets. Workaround: switch the row to QUOTED and add a Canva design URL.

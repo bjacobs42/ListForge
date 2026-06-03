@@ -1,2 +1,5 @@
 .env
 check-metaobjects.js
+
+# Local Netlify folder
+.netlify
