@@ -1,4 +1,4 @@
-# Aria
+# ListForge
 
 Automated product listing pipeline for Bobby June. Reads product rows from a Google Sheet, enriches them via Canva, CJ Dropshipping, and competitor scraping, generates SEO-optimised copy using Claude AI, creates draft products on Shopify with full taxonomy metadata and variant images — all on a scheduled basis or on demand.
 
